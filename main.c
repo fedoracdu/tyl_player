@@ -85,7 +85,9 @@ int main(int argc, const char **argv)
 		if (control.pre_next_flg == 2) {
 			control.pre_next_flg = 0;
 			if (i < argc - 1)
-			i++;
+				i++;
+			else
+				break;
 		}
 
 		if (i >= argc)
