@@ -4,6 +4,9 @@
 
 static snd_pcm_t	*playback_handle;
 static snd_pcm_uframes_t buffer_size, period_size;
+static unsigned int audio_channels;
+static unsigned int audio_sample_rate;
+static snd_pcm_format_t audio_format;
 
 static int xrun_recover(int err)
 {
@@ -20,6 +23,26 @@ static int xrun_recover(int err)
 	}
 
 	return err;
+}
+
+static inline unsigned int get_bytes_per_sample(snd_pcm_format_t format)
+{
+	unsigned int	ret = 0;
+
+	switch (format) {
+	case SND_PCM_FORMAT_U8:
+		ret = 1;
+		break;
+	case SND_PCM_FORMAT_S32_LE:
+	case SND_PCM_FORMAT_S32_BE:
+		ret = 4;
+		break;
+	default:
+		ret = 2;
+		break;
+	}
+
+	return ret;
 }
 
 int init_alsa(unsigned int channels, unsigned sample_rate,
@@ -104,6 +127,10 @@ int init_alsa(unsigned int channels, unsigned sample_rate,
 	
 	snd_pcm_hw_params_free(hw_params);
 
+	audio_channels = channels;
+	audio_sample_rate = sample_rate;
+	audio_format = format;
+
 	ret = 0;
 
 	return ret;
@@ -140,7 +167,7 @@ int write_to_alsa(const void *buf, unsigned int size)
 			}
 		}
 
-		buf += 2 * 2 * ret;
+		buf += audio_channels * get_bytes_per_sample(audio_format) * ret;
 		size -= ret;
 	}
 
