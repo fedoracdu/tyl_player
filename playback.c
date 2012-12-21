@@ -154,9 +154,10 @@ static void audio_decode_frame(AVPacket *pkt)
 			snprintf(time_arr, 18, "%02d:%02d:%02d/%s", hours, mins, secs, time_total);
 			size = size / av_get_bytes_per_sample(frame->format) / frame->channels;
 			write_sndcard(frame->data[0], size);
-			fprintf(stderr, "%s\r", time_arr);
+			fprintf(stderr, "    %s\r", time_arr);
 			continue;
 		}
+
 		if (!swr_ctx) {
 			swr_ctx = swr_alloc_set_opts(NULL, audio_params_t.channel_layout,
 							audio_params_t.av_format, audio_params_t.sample_rate,
@@ -185,9 +186,9 @@ static void audio_decode_frame(AVPacket *pkt)
 			int	min = secs / 60;
 			int	sec = secs % 60;
 			memset(time_arr, 0, sizeof(time_arr));
-			snprintf(time_arr, 18, "%02d:%02d:%02d/%s", hour, min, sec, time_total);
-			fprintf(stderr, "    %s\r", time_arr);
+			snprintf(time_arr, sizeof(time_arr) - 1, "%02d:%02d:%02d/%s", hour, min, sec, time_total);
 			write_sndcard(audio_buf, len);
+			fprintf(stderr, "    %s\r", time_arr);
 		}
 	}
 	return ;
@@ -242,8 +243,10 @@ void play(const char *filename)
 			break;
 		}
 
-		if (control.pre_next_flg)
+		if (control.pre_next_flg) {
+			control.pause_flg = 0;
 			break;
+		}
 
 		if (control.pause_flg) {
 			if (!flg)
