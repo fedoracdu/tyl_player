@@ -17,8 +17,7 @@ void *control_process(void *arg)
 		}
 
 		if (control.begin_flg) {
-			if (read(STDIN_FILENO, &ch, 1) != 1)
-				continue;
+			ch = getchar();
 
 			if (ch == 'p' || ch == ' ') {
 				if (!control.pause_flg) {
@@ -40,7 +39,6 @@ void *control_process(void *arg)
 				control.pre_next_flg = 2;
 			}
 
-			usleep(20000);
 			continue;
 		}
 
