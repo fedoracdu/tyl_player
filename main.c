@@ -43,12 +43,6 @@ static int init(void)
 		goto fail;
 	}
 
-	ret = fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
-	if (ret) {
-		perror("fcntl");
-		goto fail;
-	}
-
 	init_libav();
 
 	memset(&control, 0, sizeof(control_t));
