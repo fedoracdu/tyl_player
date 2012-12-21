@@ -1,7 +1,7 @@
 tyl_player
 ==========
 
-based on ffmpeg, alsa
+based on ffmpeg and alsa
 
 instruction
 
