@@ -84,6 +84,7 @@ static int stream_open(const char *filename)
 		memset(time_total, 0, sizeof(time_total));
 		snprintf(time_total, 9, "%02d:%02d:%02d", hours, mins, secs);
 	}
+
 	avctx = ic->streams[audio_idx]->codec;
 
 	codec = avcodec_find_decoder(avctx->codec_id);
@@ -217,9 +218,8 @@ void play(const char *filename)
 
 	control.begin_flg = 0;
 	memset(pkt, 0, sizeof(AVPacket));
-
-	ret = stream_open(filename);
-	if (ret != 0)
+ret = stream_open(filename);
+	if (ret < 0)
 		return ;
 
 	ret = init_sndcard(avctx->sample_rate, avctx->channels,
