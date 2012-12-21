@@ -137,6 +137,26 @@ static void audio_decode_frame(AVPacket *pkt)
 			continue;
 		}
 
+		bytes_per_sec = frame->sample_rate * frame->channels *
+							av_get_bytes_per_sample(frame->format);
+
+		if (!av_sample_fmt_is_planar(frame->format)) {
+			int size = frame->linesize[0];
+
+			pts += (double)size / bytes_per_sec;
+			snprintf(time_arr, sizeof(time_arr) - 1, "%.2lf", pts);
+			int secs = atoi(time_arr);
+			int hours = secs / 3600;
+			int mins = secs / 60;
+			secs %= 60;
+
+			memset(time_arr, 0, sizeof(time_arr));
+			snprintf(time_arr, 18, "%02d:%02d:%02d/%s", hours, mins, secs, time_total);
+			size = size / av_get_bytes_per_sample(frame->format) / frame->channels;
+			write_sndcard(frame->data[0], size);
+			fprintf(stderr, "%s\r", time_arr);
+			continue;
+		}
 		if (!swr_ctx) {
 			swr_ctx = swr_alloc_set_opts(NULL, audio_params_t.channel_layout,
 							audio_params_t.av_format, audio_params_t.sample_rate,
@@ -156,8 +176,6 @@ static void audio_decode_frame(AVPacket *pkt)
 			len = swr_convert(swr_ctx, out, out_cnt, in, frame->nb_samples);
 			if (len < 0)
 				break;
-			bytes_per_sec = frame->sample_rate * frame->channels *
-							av_get_bytes_per_sample(frame->format);
 
 			double tmp = ((double) len)  * av_get_bytes_per_sample(frame->format) * frame->channels;
 			pts += tmp / bytes_per_sec;
