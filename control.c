@@ -23,7 +23,7 @@ void *control_process(void *arg)
 			if (ch == 'p' || ch == ' ') {
 				if (!control.pause_flg) {
 					control.pause_flg = 1;
-					fprintf(stderr, "\n  pausued\n");
+					fprintf(stderr, "\n  paused\n");
 				} else {
 					control.pause_flg = 0;
 				}
