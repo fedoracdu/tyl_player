@@ -9,7 +9,8 @@
 #include "sndcard.h"
 
 static double pts;
-static char	time_arr[12];
+static char time_total[12];
+static char	time_arr[24];
 static unsigned int bytes_per_sec;
 static int	flg = 0;
 static uint8_t *audio_buf;
@@ -20,6 +21,7 @@ static AVCodecContext	*avctx;
 static AVCodec			*codec;
 static struct SwrContext *swr_ctx;
 static AVFrame			*frame;
+static int	hours, mins, secs;
 
 static int row, col;
 
@@ -62,6 +64,17 @@ static int stream_open(const char *filename)
 		goto fail;
 	}
 
+	if (ic->duration != AV_NOPTS_VALUE) {
+		int64_t	duration = ic->duration + 5000;
+		secs = duration / AV_TIME_BASE;
+		mins = secs / 60;
+		secs %= 60;
+		hours = mins / 60;
+		mins %= 60;
+
+		memset(time_total, 0, sizeof(time_total));
+		sprintf(time_total, "%02d:%02d:%02d", hours, mins, secs);
+	}
 	avctx = ic->streams[audio_idx]->codec;
 
 	codec = avcodec_find_decoder(avctx->codec_id);
@@ -147,7 +160,7 @@ static void audio_decode_frame(AVPacket *pkt)
 			int	min = secs / 60;
 			int	sec = secs % 60;
 			memset(time_arr, 0, sizeof(time_arr));
-			sprintf(time_arr, "%02d:%02d:%02d", hour, min, sec);
+			sprintf(time_arr, "%02d:%02d:%02d/%s", hour, min, sec, time_total);
 			mvprintw(row / 2 - 1, (col - strlen(time_arr)) / 2, "%s\r", time_arr);
 			mvprintw(row / 2, (col - strlen("playing\n")) / 2, "%s", "playing\n"); 
 			refresh();
