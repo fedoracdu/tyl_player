@@ -1,33 +1,29 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <ncurses.h>
 #include <string.h>
 
 #include "control.h"
 
 control_t	control;
 
-static int	row, col;
-
 void *control_process(void *arg)
 {
-	int	ch;
+	char ch;
 
-	getmaxyx(stdscr, row, col);
 	while (1) {
 		if (control.end_flg) {
 			break;
 		}
 
 		if (control.begin_flg) {
-			ch = getch();
+			if (read(STDIN_FILENO, &ch, 1) != 1)
+				continue;
 
 			if (ch == 'p' || ch == ' ') {
 				if (!control.pause_flg) {
 					control.pause_flg = 1;
-					mvprintw(row/2, (col - strlen("pausued\n"))/2, "pausued\n");
-					refresh();
+					fprintf(stderr, "\n  pausued\n");
 				} else {
 					control.pause_flg = 0;
 				}

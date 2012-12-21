@@ -3,27 +3,37 @@
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
 #include <unistd.h>
-#include <ncurses.h>
 
 #include "control.h"
 #include "sndcard.h"
 
-static double pts;
-static char time_total[12];
-static char	time_arr[24];
-static unsigned int bytes_per_sec;
-static int	flg = 0;
-static uint8_t *audio_buf;
-unsigned int	buf_size;
-static int	audio_idx;	
+static double 			pts;
+static char 			time_total[12];
+static char				time_arr[24];
+static unsigned int 	bytes_per_sec;
+static int				flg = 0;
+static uint8_t 			*audio_buf;
+unsigned int			buf_size;
+static int				audio_idx;	
 static AVFormatContext	*ic;
 static AVCodecContext	*avctx;
 static AVCodec			*codec;
-static struct SwrContext *swr_ctx;
 static AVFrame			*frame;
-static int	hours, mins, secs;
+static int				hours, mins, secs;
+static struct SwrContext	*swr_ctx;
 
-static int row, col;
+static void display_metadata(void)
+{
+	AVDictionaryEntry	*tag = NULL;
+
+	putchar('\n');
+	putchar('\n');
+	while ((tag = av_dict_get(ic->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
+		fprintf(stderr, "  %s = %s\n", tag->key, tag->value);
+	}
+
+	return ;
+}
 
 static int stream_open(const char *filename)
 {
@@ -32,24 +42,22 @@ static int stream_open(const char *filename)
 	AVDictionary	*opts = NULL;
 	AVDictionaryEntry	*t = NULL;
 
-	audio_idx = -1;
-	ic = NULL;
-	avctx = NULL;
-	codec = NULL;
-	swr_ctx = NULL;
-	frame = NULL;
+	audio_idx	= -1;
+	ic 			= NULL;
+	avctx	 	= NULL;
+	codec 		= NULL;
+	swr_ctx 	= NULL;
+	frame 		= NULL;
 
 	ret = avformat_open_input(&ic, filename, NULL, NULL);
 	if (ret < 0) {
-		printw("open '%s' failed: %s\n", filename, strerror(ret));
-		refresh();
+		fprintf(stderr, "open '%s' failed: %s\n", filename, strerror(ret));
 		goto fail;
 	}
 
 	ret = avformat_find_stream_info(ic, NULL);
 	if (ret < 0) {
-		printw("'%s': could not find codec parameters\n", filename);
-		refresh();
+		fprintf(stderr, "'%s': could not find codec parameters\n", filename);
 		goto fail;
 	}
 
@@ -58,11 +66,12 @@ static int stream_open(const char *filename)
 
 	audio_idx = av_find_best_stream(ic, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
 	if (audio_idx < 0) {
-		printw("could NOT find audio stream\n");
-		refresh();
+		fprintf(stderr, "could NOT find audio stream\n");
 		ret = -EINVAL;
 		goto fail;
 	}
+
+	display_metadata();
 
 	if (ic->duration != AV_NOPTS_VALUE) {
 		int64_t	duration = ic->duration + 5000;
@@ -73,14 +82,13 @@ static int stream_open(const char *filename)
 		mins %= 60;
 
 		memset(time_total, 0, sizeof(time_total));
-		sprintf(time_total, "%02d:%02d:%02d", hours, mins, secs);
+		snprintf(time_total, 9, "%02d:%02d:%02d", hours, mins, secs);
 	}
 	avctx = ic->streams[audio_idx]->codec;
 
 	codec = avcodec_find_decoder(avctx->codec_id);
 	if (!codec) {
-		printw("codec NOT found\n");
-		refresh();
+		fprintf(stderr, "codec NOT found\n");
 		ret = -1;
 		goto fail;
 	}
@@ -93,8 +101,7 @@ static int stream_open(const char *filename)
 
 	av_dict_set(&opts, "threads", "auto", 0);
 	if (avcodec_open2(avctx, codec, &opts) < 0) {
-		printw("could NOT open codec\n");
-		refresh();
+		fprintf(stderr, "could NOT open codec\n");
 		ret = -1;
 		goto fail;
 	}
@@ -160,31 +167,14 @@ static void audio_decode_frame(AVPacket *pkt)
 			int	min = secs / 60;
 			int	sec = secs % 60;
 			memset(time_arr, 0, sizeof(time_arr));
-			sprintf(time_arr, "%02d:%02d:%02d/%s", hour, min, sec, time_total);
-			mvprintw(row / 2 - 1, (col - strlen(time_arr)) / 2, "%s\r", time_arr);
-			mvprintw(row / 2, (col - strlen("playing\n")) / 2, "%s", "playing\n"); 
-			refresh();
+			snprintf(time_arr, 18, "%02d:%02d:%02d/%s", hour, min, sec, time_total);
+			fprintf(stderr, "    %s\r", time_arr);
 			write_sndcard(audio_buf, len);
 		}
 	}
 	return ;
 }
 
-/*
-static void display_metadata(void)
-{
-	int	i = row / 2 + 2;
-	AVDictionaryEntry	*tag = NULL;
-
-	while ((tag = av_dict_get(ic->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
-		mvprintw(i, (col - strlen(tag->value)) / 2 - 5, "%s = %s\n", tag->key, tag->value);
-		i++;
-	}
-	refresh();
-
-	return ;
-}
-*/
 void init_libav(void)
 {
 	av_log_set_flags(AV_LOG_SKIP_REPEATED);
@@ -205,8 +195,6 @@ void play(const char *filename)
 
 	if (control.end_flg)
 		return ;
-
-	getmaxyx(stdscr, row, col);
 
 	control.begin_flg = 0;
 	memset(pkt, 0, sizeof(AVPacket));
@@ -229,7 +217,6 @@ void play(const char *filename)
 	pts = 0;
 	memset(time_arr, 0, sizeof(time_arr));
 
-	clear();
 
 	while (1) {
 		if (control.end_flg) {
@@ -285,7 +272,6 @@ void play(const char *filename)
 		swr_ctx = NULL;
 	}
 
-	clear();
 	usleep(100);
 	return ;
 }

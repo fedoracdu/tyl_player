@@ -10,7 +10,6 @@ FFMPEG_LIBS=    libavdevice                        \
 CFLAGS += -Wall -O2
 CFLAGS := $(shell pkg-config --cflags $(FFMPEG_LIBS)) $(CFLAGS)
 LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
-LDLIBS := $(LDLIBS) -lncurses
 
 TARGET=player
 

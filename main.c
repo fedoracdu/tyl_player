@@ -1,35 +1,65 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <ncurses.h>
+#include <termios.h>
+#include <fcntl.h>
 
 #include "playback.h"
 #include "control.h"
 
+static struct termios saved_attr;
 static pthread_t	control_thread;
+
+static void reset_input_mode(void)
+{
+	if (tcsetattr(STDIN_FILENO, TCSANOW, &saved_attr))
+		tcsetattr(STDIN_FILENO, TCSANOW, &saved_attr);
+}
 
 static int init(void)
 {
 	int	ret = 0;
+	struct termios tattr;
 
-	initscr();
-	raw();
-	noecho();
-	cbreak();
+	if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
+		ret = -1;
+		goto fail;
+	}
+
+	ret = tcgetattr(STDIN_FILENO, &tattr);
+	if (ret) {
+		perror("tcgetattr");
+		goto fail;
+	}
+	saved_attr = tattr;
+	atexit(reset_input_mode);
+	tattr.c_lflag &= ~ECHO;
+	tattr.c_lflag &= ~ICANON;
+	ret = tcsetattr(STDIN_FILENO, TCSAFLUSH, &tattr);
+	if (ret) {
+		perror("tcsetattr");
+		goto fail;
+	}
+
+	ret = fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+	if (ret) {
+		perror("fcntl");
+		goto fail;
+	}
 
 	init_libav();
 
 	memset(&control, 0, sizeof(control_t));
 
+	init_sndcard_control();
+
 	ret = pthread_create(&control_thread, NULL, control_process, NULL);
 	if (ret != 0) {
-		printw("control thread create failure\n");
-		refresh();
+		fprintf(stderr, "control thread create failure\n");
 		goto fail;
 	}
-	
-	init_sndcard_control();
 
 fail:
 	return ret;
@@ -41,8 +71,7 @@ int main(int argc, const char **argv)
 	int			ret = -1;
 
 	if (argc < 2) {
-		printw("Usage: player <media_filename(s)\n");
-		refresh();
+		fprintf(stderr, "Usage: player <media_filename(s)\n");
 		return -1;
 	}
 
@@ -74,8 +103,6 @@ int main(int argc, const char **argv)
 	pthread_cancel(control_thread);
 
 	pthread_join(control_thread, NULL);
-
-	endwin();
 
 	return 0;
 }
