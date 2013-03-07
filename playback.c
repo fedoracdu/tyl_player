@@ -12,7 +12,8 @@ static char 			time_total[12];
 static char				time_arr[24];
 static unsigned int 	bytes_per_sec;
 static int				flg = 0;
-static uint8_t 			*audio_buf;
+//DECLARE_ALIGNED(16, uint8_t, audio_buf)[AVCODEC_MAX_AUDIO_FRAME_SIZE * 4];
+static uint8_t			*audio_buf;
 unsigned int			buf_size;
 static int				audio_idx;	
 static AVFormatContext	*ic;
@@ -170,10 +171,11 @@ static void audio_decode_frame(AVPacket *pkt)
 		if (swr_ctx) {
 			const uint8_t	**in = (const uint8_t **)frame->extended_data;
 			uint8_t **out = &audio_buf;
-			int out_cnt = frame->nb_samples * audio_params_t.sample_rate /
+			int out_cnt = (int64_t)frame->nb_samples * audio_params_t.sample_rate /
 						   frame->sample_rate + 256;
-			int out_size = av_samples_get_buffer_size(NULL, 2, out_cnt,
-							frame->format, 0);
+			int out_size = av_samples_get_buffer_size(NULL,
+							audio_params_t.channels, out_cnt,
+							audio_params_t.av_format, 0);
 			av_fast_malloc(&audio_buf, &buf_size, out_size);
 			len = swr_convert(swr_ctx, out, out_cnt, in, frame->nb_samples);
 			if (len < 0)
@@ -188,10 +190,13 @@ static void audio_decode_frame(AVPacket *pkt)
 			int	sec = secs % 60;
 			memset(time_arr, 0, sizeof(time_arr));
 			snprintf(time_arr, sizeof(time_arr) - 1, "%02d:%02d:%02d/%s", hour, min, sec, time_total);
+
 			write_sndcard(audio_buf, len);
+
 			fprintf(stderr, "    %s\r", time_arr);
 		}
 	}
+
 	return ;
 }
 
@@ -235,7 +240,6 @@ ret = stream_open(filename);
 	control.begin_flg = 1;
 	pts = 0;
 	memset(time_arr, 0, sizeof(time_arr));
-
 
 	while (1) {
 		if (control.end_flg) {

@@ -144,6 +144,8 @@ fail:
 
 int close_alsa(void)
 {
+	snd_pcm_drop(playback_handle);
+
 	if (playback_handle) {
 		snd_pcm_close(playback_handle);
 		playback_handle = NULL;
